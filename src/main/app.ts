@@ -4,6 +4,7 @@ import * as bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { glob } from 'glob';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import favicon from 'serve-favicon';
 
 import { HTTPError } from './HttpError';
@@ -45,3 +46,8 @@ app.use((err: HTTPError, req: express.Request, res: express.Response) => {
   res.status(err.status || 500);
   res.render('error');
 });
+
+app.use('/api', createProxyMiddleware({
+  target: 'http://localhost:4000',
+  changeOrigin: true,
+}));
