@@ -21,6 +21,27 @@ app.locals.ENV = env;
 new Nunjucks(developmentMode).enableFor(app);
 
 app.use(favicon(path.join(__dirname, '/public/assets/images/favicon.ico')));
+
+app.use('/api', createProxyMiddleware({
+  target: 'http://localhost:4000',
+  changeOrigin: true,
+  pathRewrite: { '^/api' : '' },
+  logger: console, // Add logging to see what's happening
+  on: {
+  error: (err, req, res) => {
+    console.error('Proxy Error:', err);
+    console.error('Request URL:', req.url);
+    // res.status(500).send('Proxy Error: ' + err.message);
+  },
+  proxyReq: (proxyReq, req, res) => {
+    console.log('Proxying request:', req.method, req.url, '-> http://localhost:4000' + proxyReq.path);
+  },
+  proxyRes: (proxyRes, req, res) => {
+    console.log('Proxy response:', proxyRes.statusCode, 'for', req.url);
+  },
+  },
+}));
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -46,8 +67,3 @@ app.use((err: HTTPError, req: express.Request, res: express.Response) => {
   res.status(err.status || 500);
   res.render('error');
 });
-
-app.use('/api', createProxyMiddleware({
-  target: 'http://localhost:4000',
-  changeOrigin: true,
-}));

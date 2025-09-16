@@ -26,11 +26,6 @@
             <div class="govuk-grid-row">
               <div class="govuk-grid-column-full">
                 <h2 class="govuk-heading-l">All Cases</h2>
-                ' + govukButton({
-                  text: "Create New Case",
-                  id: "create-case-btn",
-                  classes: "govuk-button--secondary govuk-!-margin-bottom-4"
-                }) + '
                 <div id="cases-container">
                   <div class="govuk-body">Loading cases...</div>
                 </div>
@@ -205,15 +200,6 @@
         }
       });
 
-      // Create case button
-      document.getElementById('create-case-btn').addEventListener('click', function() {
-        // Switch to create case tab
-        const createTab = document.querySelector('[href="#create-case"]');
-        if (createTab) {
-          createTab.click();
-        }
-      });
-
       // Cancel button
       document.getElementById('cancel-btn').addEventListener('click', function(e) {
         e.preventDefault();
@@ -222,39 +208,60 @@
     }
 
     function createCase() {
-      const caseData = {
-        caseNumber: document.getElementById('case-number').value,
-        title: document.getElementById('title').value,
-        description: document.getElementById('description').value,
-        status: document.getElementById('status').value,
-        createdDate: new Date().toISOString()
-      };
+  console.log('createCase function called');
+  
+  const caseData = {
+    caseNumber: document.getElementById('case-number').value,
+    title: document.getElementById('title').value,
+    description: document.getElementById('description').value,
+    status: document.getElementById('status').value
+  };
 
-      fetch('/api/cases', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(caseData)
-      })
-      .then(response => {
-        if (!response.ok) throw new Error('Failed to create case');
-        return response.json();
-      })
-      .then(data => {
-        showMessage('Case created successfully!', 'success');
-        resetForm();
-        loadAllCases();
-        // Switch back to all cases tab
-        const allCasesTab = document.querySelector('[href="#all-cases"]');
-        if (allCasesTab) {
-          allCasesTab.click();
-        }
-      })
-      .catch(error => {
-        showMessage('Error creating case: ' + error.message, 'error');
+  console.log('Case data to be sent:', caseData);
+
+  // Validate required fields
+  if (!caseData.caseNumber || !caseData.title) {
+    showMessage('Case Number and Title are required!', 'error');
+    return;
+  }
+
+  console.log('Making POST request to /api/cases');
+
+  fetch('/api/cases', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(caseData)
+  })
+  .then(response => {
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    
+    if (!response.ok) {
+      return response.text().then(text => {
+        console.error('Error response body:', text);
+        throw new Error(`Failed to create case: ${response.status} - ${text}`);
       });
     }
+    return response.json();
+  })
+  .then(data => {
+    console.log('Case created successfully:', data);
+    showMessage('Case created successfully!', 'success');
+    resetForm();
+    loadAllCases();
+    // Switch back to all cases tab
+    const allCasesTab = document.querySelector('[href="#all-cases"]');
+    if (allCasesTab) {
+      allCasesTab.click();
+    }
+  })
+  .catch(error => {
+    console.error('Error creating case:', error);
+    showMessage('Error creating case: ' + error.message, 'error');
+  });
+}
 
     function loadAllCases() {
       const container = document.getElementById('cases-container');
