@@ -117,6 +117,51 @@
             </div>
           '
         }
+      },
+      {
+        label: "Search Cases",
+        id: "search-cases",
+        panel: {
+          html: '
+            <div class="govuk-grid-row">
+              <div class="govuk-grid-column-full">
+                <h2 class="govuk-heading-l">Search Cases</h2>
+                <form id="search-form" class="govuk-!-margin-bottom-6">
+                  ' + govukInput({
+                    label: {
+                      text: "Case ID"
+                    },
+                    hint: {
+                      text: "Enter the numeric ID of the case you want to find"
+                    },
+                    id: "search-id",
+                    name: "search-id",
+                    type: "number",
+                    attributes: {
+                      required: true,
+                      min: "1"
+                    }
+                  }) + '
+                  <div class="govuk-button-group">
+                    ' + govukButton({
+                      text: "Search Case",
+                      type: "submit",
+                      id: "search-submit-btn"
+                    }) + '
+                    ' + govukButton({
+                      text: "Clear Results",
+                      classes: "govuk-button--secondary",
+                      id: "clear-search-btn"
+                    }) + '
+                  </div>
+                </form>
+                <div id="search-results-container">
+                  <div class="govuk-body">Enter a case ID above to search for a specific case.</div>
+                </div>
+              </div>
+            </div>
+          '
+        }
       }
     ]
   }) }}
@@ -187,7 +232,7 @@
     });
 
     function initializeEventListeners() {
-      // Form submission
+      // Form submission for create/edit
       document.getElementById('case-form').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -205,63 +250,78 @@
         e.preventDefault();
         resetForm();
       });
+
+      // Search form submission
+      document.getElementById('search-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const searchId = document.getElementById('search-id').value;
+        if (searchId) {
+          searchCaseById(searchId);
+        }
+      });
+
+      // Clear search results
+      document.getElementById('clear-search-btn').addEventListener('click', function(e) {
+        e.preventDefault();
+        clearSearchResults();
+      });
     }
 
     function createCase() {
-  console.log('createCase function called');
-  
-  const caseData = {
-    caseNumber: document.getElementById('case-number').value,
-    title: document.getElementById('title').value,
-    description: document.getElementById('description').value,
-    status: document.getElementById('status').value
-  };
+      console.log('createCase function called');
+      
+      const caseData = {
+        caseNumber: document.getElementById('case-number').value,
+        title: document.getElementById('title').value,
+        description: document.getElementById('description').value,
+        status: document.getElementById('status').value
+      };
 
-  console.log('Case data to be sent:', caseData);
+      console.log('Case data to be sent:', caseData);
 
-  // Validate required fields
-  if (!caseData.caseNumber || !caseData.title) {
-    showMessage('Case Number and Title are required!', 'error');
-    return;
-  }
+      // Validate required fields
+      if (!caseData.caseNumber || !caseData.title) {
+        showMessage('Case Number and Title are required!', 'error');
+        return;
+      }
 
-  console.log('Making POST request to /api/cases');
+      console.log('Making POST request to /api/cases');
 
-  fetch('/api/cases', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(caseData)
-  })
-  .then(response => {
-    console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers);
-    
-    if (!response.ok) {
-      return response.text().then(text => {
-        console.error('Error response body:', text);
-        throw new Error(`Failed to create case: ${response.status} - ${text}`);
+      fetch('/api/cases', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(caseData)
+      })
+      .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
+        if (!response.ok) {
+          return response.text().then(text => {
+            console.error('Error response body:', text);
+            throw new Error(`Failed to create case: ${response.status} - ${text}`);
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Case created successfully:', data);
+        showMessage('Case created successfully!', 'success');
+        resetForm();
+        loadAllCases();
+        // Switch back to all cases tab
+        const allCasesTab = document.querySelector('[href="#all-cases"]');
+        if (allCasesTab) {
+          allCasesTab.click();
+        }
+      })
+      .catch(error => {
+        console.error('Error creating case:', error);
+        showMessage('Error creating case: ' + error.message, 'error');
       });
     }
-    return response.json();
-  })
-  .then(data => {
-    console.log('Case created successfully:', data);
-    showMessage('Case created successfully!', 'success');
-    resetForm();
-    loadAllCases();
-    // Switch back to all cases tab
-    const allCasesTab = document.querySelector('[href="#all-cases"]');
-    if (allCasesTab) {
-      allCasesTab.click();
-    }
-  })
-  .catch(error => {
-    console.error('Error creating case:', error);
-    showMessage('Error creating case: ' + error.message, 'error');
-  });
-}
 
     function loadAllCases() {
       const container = document.getElementById('cases-container');
@@ -273,23 +333,53 @@
         return response.json();
       })
       .then(data => {
-        displayCases(data.content || []);
+        displayCases(data.content || [], 'cases-container');
       })
       .catch(error => {
         container.innerHTML = '<div class="govuk-error-message">Error loading cases: ' + error.message + '</div>';
       });
     }
 
-    function displayCases(cases) {
-      const container = document.getElementById('cases-container');
+    function searchCaseById(id) {
+      const container = document.getElementById('search-results-container');
+      container.innerHTML = '<div class="govuk-body">Searching for case...</div>';
+
+      fetch(`/api/cases/${id}`)
+      .then(response => {
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('Case not found');
+          }
+          throw new Error('Failed to load case');
+        }
+        return response.json();
+      })
+      .then(caseData => {
+        displayCases([caseData], 'search-results-container');
+        showMessage('Case found successfully!', 'success');
+      })
+      .catch(error => {
+        container.innerHTML = `<div class="govuk-error-message">Error: ${error.message}</div>`;
+        showMessage('Error searching for case: ' + error.message, 'error');
+      });
+    }
+
+    function clearSearchResults() {
+      document.getElementById('search-id').value = '';
+      document.getElementById('search-results-container').innerHTML = '<div class="govuk-body">Enter a case ID above to search for a specific case.</div>';
+    }
+
+    function displayCases(cases, containerId) {
+      const container = document.getElementById(containerId);
       
       if (cases.length === 0) {
-        container.innerHTML = '<p class="govuk-body">No cases found. Create one using the "Create Case" tab!</p>';
+        container.innerHTML = '<p class="govuk-body">No cases found.</p>';
         return;
       }
 
       // Create table data
       const tableRows = cases.map(caseItem => [
+        { text: caseItem.id },
         { text: caseItem.caseNumber },
         { text: caseItem.title },
         { text: caseItem.description || 'No description' },
@@ -307,6 +397,7 @@
         <table class="govuk-table">
           <thead class="govuk-table__head">
             <tr class="govuk-table__row">
+              <th scope="col" class="govuk-table__header">ID</th>
               <th scope="col" class="govuk-table__header">Case Number</th>
               <th scope="col" class="govuk-table__header">Title</th>
               <th scope="col" class="govuk-table__header">Description</th>
@@ -414,6 +505,11 @@
         if (!response.ok) throw new Error('Failed to delete case');
         showMessage('Case deleted successfully!', 'success');
         loadAllCases();
+        // Also clear search results if we're on search tab
+        const searchContainer = document.getElementById('search-results-container');
+        if (searchContainer && searchContainer.innerHTML.includes('table')) {
+          clearSearchResults();
+        }
       })
       .catch(error => {
         showMessage('Error deleting case: ' + error.message, 'error');
