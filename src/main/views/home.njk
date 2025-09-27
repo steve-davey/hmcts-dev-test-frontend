@@ -267,46 +267,78 @@
       });
     }
 
-    function createCase() {
-      console.log('createCase function called');
-      
-      const caseData = {
-        caseNumber: document.getElementById('case-number').value,
-        title: document.getElementById('title').value,
-        description: document.getElementById('description').value,
-        status: document.getElementById('status').value
-      };
+    function validateForm() {
+    const caseNumber = document.getElementById('case-number').value.trim();
+    const title = document.getElementById('title').value.trim();
+    const status = document.getElementById('status').value;
 
-      console.log('Case data to be sent:', caseData);
+    const errors = [];
 
-      // Validate required fields
-      if (!caseData.caseNumber || !caseData.title) {
-        showMessage('Case Number and Title are required!', 'error');
+    // Case number validation
+    if (!caseNumber) {
+        errors.push('Case number is required');
+    } else if (caseNumber.length < 3 || caseNumber.length > 20) {
+        errors.push('Case number must be between 3 and 20 characters');
+    } else if (!/^[A-Z0-9]+$/.test(caseNumber)) {
+        errors.push('Case number must contain only uppercase letters and numbers');
+    }
+
+    // Title validation
+    if (!title) {
+        errors.push('Title is required');
+    } else if (title.length < 5 || title.length > 100) {
+        errors.push('Title must be between 5 and 100 characters');
+    }
+
+    // Status validation
+    if (!status) {
+        errors.push('Status is required');
+    }
+
+    // Description validation
+    const description = document.getElementById('description').value.trim();
+    if (description && description.length > 500) {
+        errors.push('Description cannot exceed 500 characters');
+    }
+
+    return errors;
+}
+
+function createCase() {
+    console.log('createCase function called');
+    
+    // Client-side validation
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+        showMessage('Validation errors: ' + validationErrors.join(', '), 'error');
         return;
-      }
+    }
 
-      console.log('Making POST request to /api/cases');
+    const caseData = {
+        caseNumber: document.getElementById('case-number').value.trim().toUpperCase(),
+        title: document.getElementById('title').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        status: document.getElementById('status').value
+    };
 
-      fetch('/api/cases', {
+    console.log('Case data to be sent:', caseData);
+
+    fetch('/api/cases', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify(caseData)
-      })
-      .then(response => {
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-        
+    })
+    .then(response => {
         if (!response.ok) {
-          return response.text().then(text => {
-            console.error('Error response body:', text);
-            throw new Error(`Failed to create case: ${response.status} - ${text}`);
-          });
+            return response.json().then(errorData => {
+                throw new Error(formatErrorMessage(errorData));
+            });
         }
         return response.json();
-      })
-      .then(data => {
+    })
+    .then(data => {
         console.log('Case created successfully:', data);
         showMessage('Case created successfully!', 'success');
         resetForm();
@@ -314,14 +346,92 @@
         // Switch back to all cases tab
         const allCasesTab = document.querySelector('[href="#all-cases"]');
         if (allCasesTab) {
-          allCasesTab.click();
+            allCasesTab.click();
         }
-      })
-      .catch(error => {
+    })
+    .catch(error => {
         console.error('Error creating case:', error);
         showMessage('Error creating case: ' + error.message, 'error');
-      });
+    });
+}
+
+function formatErrorMessage(errorData) {
+    if (errorData.details && Array.isArray(errorData.details)) {
+        return errorData.details.join(', ');
     }
+    return errorData.message || 'Unknown error occurred';
+}
+
+function initializeValidation() {
+    const caseNumberInput = document.getElementById('case-number');
+    const titleInput = document.getElementById('title');
+    const descriptionInput = document.getElementById('description');
+
+    caseNumberInput.addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+        validateField(this, validateCaseNumber);
+    });
+
+    titleInput.addEventListener('input', function() {
+        validateField(this, validateTitle);
+    });
+
+    descriptionInput.addEventListener('input', function() {
+        validateField(this, validateDescription);
+    });
+}
+
+function validateField(input, validator) {
+    const errors = validator(input.value);
+    const errorElement = input.parentNode.querySelector('.govuk-error-message');
+    
+    if (errors.length > 0) {
+        input.classList.add('govuk-input--error');
+        if (!errorElement) {
+            const error = document.createElement('p');
+            error.className = 'govuk-error-message';
+            error.innerHTML = '<span class="govuk-visually-hidden">Error:</span>' + errors[0];
+            input.parentNode.insertBefore(error, input);
+        } else {
+            errorElement.innerHTML = '<span class="govuk-visually-hidden">Error:</span>' + errors[0];
+        }
+    } else {
+        input.classList.remove('govuk-input--error');
+        if (errorElement) {
+            errorElement.remove();
+        }
+    }
+}
+
+function validateCaseNumber(value) {
+    const errors = [];
+    if (!value.trim()) {
+        errors.push('Case number is required');
+    } else if (value.length < 3 || value.length > 20) {
+        errors.push('Case number must be between 3 and 20 characters');
+    } else if (!/^[A-Z0-9]+$/.test(value)) {
+        errors.push('Case number must contain only uppercase letters and numbers');
+    }
+    return errors;
+}
+
+function validateTitle(value) {
+    const errors = [];
+    if (!value.trim()) {
+        errors.push('Title is required');
+    } else if (value.length < 5 || value.length > 100) {
+        errors.push('Title must be between 5 and 100 characters');
+    }
+    return errors;
+}
+
+function validateDescription(value) {
+    const errors = [];
+    if (value && value.length > 500) {
+        errors.push('Description cannot exceed 500 characters');
+    }
+    return errors;
+}
 
     function loadAllCases() {
       const container = document.getElementById('cases-container');
