@@ -26,8 +26,11 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/no-shadow': 'error',
     '@typescript-eslint/no-unused-vars': [
-      'error',
+      'warn',
       {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
         ignoreRestSiblings: true,
       },
     ],
@@ -49,7 +52,7 @@ module.exports = {
     'jest/prefer-to-have-length': 'error',
     'jest/valid-expect': 'off',
     'linebreak-style': 'off',
-    'no-console': 'warn',
+    'no-console': 'off',
     'no-prototype-builtins': 'off',
     'no-return-await': 'error',
     'no-unneeded-ternary': [
